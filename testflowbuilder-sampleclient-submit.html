@@ -1,1 +1,24 @@
-Hello Vincent!
+<html>
+<head>
+  <title>My Response</title>
+  <script>
+    window.onload = function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const name = urlParams.get('name');
+      const message = urlParams.get('message');
+
+      if (name) {
+        document.getElementById('Name').value = name;
+      }
+      if (message) {
+        document.getElementById('Message').value = message;
+      }
+    };
+  </script>
+</head>
+
+<body>
+  <div>Hi: <input id="Name" /></div>
+  <div>Thanks for your message: <input id="Message" /></div>
+</body>
+</html>
