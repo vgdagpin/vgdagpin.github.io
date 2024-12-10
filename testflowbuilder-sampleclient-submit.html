@@ -7,18 +7,22 @@
       const name = urlParams.get('name');
       const message = urlParams.get('message');
 
+      let msg = '';
+
       if (name) {
+        msg += 'Hi ' + name;
         document.getElementById('Name').value = name;
       }
       if (message) {
-        document.getElementById('Message').value = message;
+         msg += ', I got your message: ' + message;
       }
+
+      document.getElementById('result').innerText = msg;
     };
   </script>
 </head>
 
 <body>
-  <div>Hi: <input id="Name" /></div>
-  <div>Thanks for your message: <input id="Message" /></div>
+  <div id="result"></div>
 </body>
 </html>
