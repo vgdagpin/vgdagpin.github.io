@@ -170,7 +170,23 @@
     }
 
     .page-current {
+      --curl-size: 0px;
       z-index: 3;
+      clip-path: polygon(
+        0 0,
+        100% 0,
+        100% calc(100% - var(--curl-size)),
+        calc(100% - var(--curl-size)) 100%,
+        0 100%
+      );
+    }
+
+    .page-current.curl-active {
+      filter: drop-shadow(-5px -3px 7px rgba(31, 20, 13, 0.2));
+    }
+
+    .page-current.curl-settling {
+      transition: clip-path 180ms ease-out, filter 180ms ease-out;
     }
 
     .page img {
@@ -307,16 +323,83 @@
 
     .page-corner {
       position: absolute;
-      right: 9px;
-      bottom: 9px;
-      z-index: 5;
-      width: 34px;
-      height: 34px;
+      right: 0;
+      bottom: 0;
+      z-index: 7;
+      width: clamp(64px, 18%, 96px);
+      height: clamp(64px, 18%, 96px);
       border: 0;
-      border-radius: 50% 0 0 0;
-      opacity: 0.34;
-      background: linear-gradient(135deg, transparent 50%, rgba(83, 59, 39, 0.25) 51%);
-      cursor: pointer;
+      padding: 0;
+      border-radius: 70% 0 0 0;
+      opacity: 0.72;
+      background: transparent;
+      cursor: grab;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .page-corner::before {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      width: 30px;
+      height: 30px;
+      background: linear-gradient(135deg, transparent 48%, rgba(83, 59, 39, 0.32) 50%);
+      content: "";
+      filter: drop-shadow(-2px -2px 2px rgba(0, 0, 0, 0.12));
+      transition: width 180ms ease, height 180ms ease, opacity 180ms ease;
+    }
+
+    .page-corner:hover::before,
+    .page-corner:focus-visible::before {
+      width: 46px;
+      height: 46px;
+      opacity: 0.9;
+    }
+
+    .page-corner:active {
+      cursor: grabbing;
+    }
+
+    .page-curl {
+      --curl-size: 0px;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      z-index: 5;
+      width: var(--curl-size);
+      height: var(--curl-size);
+      overflow: hidden;
+      opacity: 0;
+      pointer-events: none;
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0 41%, rgba(67, 45, 29, 0.16) 46%, transparent 48%),
+        linear-gradient(315deg, #b8a98d, #f9f2e1 53%, #d8cbb3 74%, #8b775c);
+      box-shadow: -7px -7px 12px rgba(27, 18, 12, 0.2);
+      transform: translateZ(3px);
+      transform-origin: bottom right;
+    }
+
+    .page-curl.visible {
+      opacity: 1;
+    }
+
+    .page-curl.settling {
+      transition: width 180ms ease-out, height 180ms ease-out, opacity 180ms ease-out;
+    }
+
+    .page-curl::after {
+      position: absolute;
+      right: 10%;
+      bottom: 10%;
+      width: 52%;
+      height: 1px;
+      background: rgba(83, 59, 39, 0.28);
+      box-shadow: 0 -3px 8px rgba(255, 255, 255, 0.38);
+      content: "";
+      transform: rotate(-45deg);
+      transform-origin: right center;
     }
 
     .controls {
@@ -432,6 +515,11 @@
       .hint {
         display: none;
       }
+
+      .page-corner {
+        width: 88px;
+        height: 88px;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -461,7 +549,8 @@
       <div class="book" id="book">
         <div class="page page-under" id="pageUnder" aria-hidden="true"></div>
         <div class="page page-current" id="pageCurrent"></div>
-        <button class="page-corner" id="pageCorner" type="button" aria-label="Turn to the next page" title="Next page"></button>
+        <div class="page-curl" id="pageCurl" aria-hidden="true"></div>
+        <button class="page-corner" id="pageCorner" type="button" aria-label="Turn to the next page" title="Drag or tap to turn the page"></button>
       </div>
     </section>
 
@@ -489,6 +578,8 @@
 
       const pageCurrent = document.getElementById("pageCurrent");
       const pageUnder = document.getElementById("pageUnder");
+      const pageCurl = document.getElementById("pageCurl");
+      const book = document.getElementById("book");
       const prevBtn = document.getElementById("prevBtn");
       const nextBtn = document.getElementById("nextBtn");
       const pageCorner = document.getElementById("pageCorner");
@@ -502,6 +593,11 @@
       let isTurning = false;
       let touchStartX = 0;
       let touchStartY = 0;
+      let isCurling = false;
+      let curlMoved = false;
+      let curlStartX = 0;
+      let curlStartY = 0;
+      let curlSize = 0;
 
       function rubiksCube() {
         const colors = ["#d84a37", "#e7b537", "#3768a9", "#4c9564", "#f2eee3", "#df7435"];
@@ -561,9 +657,36 @@
           : "Every Color Finds Its Place";
       }
 
+      function setCurl(size, settling = false) {
+        const safeSize = Math.max(0, size);
+        curlSize = safeSize;
+        pageCurrent.style.setProperty("--curl-size", `${safeSize}px`);
+        pageCurl.style.setProperty("--curl-size", `${safeSize}px`);
+        pageCurrent.classList.toggle("curl-active", safeSize > 0);
+        pageCurl.classList.toggle("visible", safeSize > 0);
+        pageCurrent.classList.toggle("curl-settling", settling);
+        pageCurl.classList.toggle("settling", settling);
+      }
+
+      function clearCurl(immediate = true) {
+        setCurl(0, !immediate);
+        window.setTimeout(() => {
+          pageCurrent.classList.remove("curl-settling");
+          pageCurl.classList.remove("settling");
+          if (!isTurning && !isCurling && curlSize === 0) pageUnder.innerHTML = "";
+        }, immediate ? 0 : 190);
+      }
+
+      function prepareCurl() {
+        if (isTurning || currentIndex >= lastIndex) return false;
+        pageUnder.innerHTML = pageMarkup(currentIndex + 1);
+        return true;
+      }
+
       function turnTo(targetIndex, direction) {
         if (isTurning || targetIndex < 0 || targetIndex > lastIndex || targetIndex === currentIndex) return;
         isTurning = true;
+        setCurl(0);
         pageUnder.innerHTML = pageMarkup(targetIndex);
 
         if (direction === "forward") {
@@ -577,6 +700,8 @@
           currentIndex = targetIndex;
           pageCurrent.innerHTML = pageMarkup(currentIndex);
           pageCurrent.classList.remove("turn-forward", "turn-back");
+          pageCurrent.classList.remove("curl-active", "curl-settling");
+          pageCurl.classList.remove("visible", "settling");
           pageUnder.innerHTML = "";
           updateStatus();
           isTurning = false;
@@ -593,7 +718,61 @@
 
       prevBtn.addEventListener("click", previousPage);
       nextBtn.addEventListener("click", nextPage);
-      pageCorner.addEventListener("click", nextPage);
+
+      pageCorner.addEventListener("pointerdown", (event) => {
+        if (!prepareCurl()) return;
+        event.preventDefault();
+        event.stopPropagation();
+        isCurling = true;
+        curlMoved = false;
+        curlStartX = event.clientX;
+        curlStartY = event.clientY;
+        pageCorner.setPointerCapture(event.pointerId);
+        setCurl(Math.min(48, book.clientWidth * 0.13));
+      });
+
+      pageCorner.addEventListener("pointermove", (event) => {
+        if (!isCurling) return;
+        event.preventDefault();
+        const bookRect = book.getBoundingClientRect();
+        const dragX = Math.max(0, bookRect.right - event.clientX);
+        const dragY = Math.max(0, bookRect.bottom - event.clientY);
+        const movement = Math.hypot(event.clientX - curlStartX, event.clientY - curlStartY);
+        curlMoved ||= movement > 8;
+        const requestedSize = Math.max(dragX, dragY, 42);
+        setCurl(Math.min(requestedSize, bookRect.width * 0.82));
+      });
+
+      function finishCornerCurl(event) {
+        if (!isCurling) return;
+        event.preventDefault();
+        event.stopPropagation();
+        isCurling = false;
+
+        const shouldTurn = !curlMoved || curlSize > book.clientWidth * 0.28;
+        if (shouldTurn) {
+          setCurl(book.clientWidth * 0.42, true);
+          window.setTimeout(nextPage, 150);
+        } else {
+          clearCurl(false);
+        }
+      }
+
+      pageCorner.addEventListener("pointerup", finishCornerCurl);
+      pageCorner.addEventListener("pointercancel", () => {
+        isCurling = false;
+        clearCurl(false);
+      });
+
+      pageCorner.addEventListener("mouseenter", () => {
+        if (!isCurling && prepareCurl()) {
+          setCurl(Math.min(40, book.clientWidth * 0.1), true);
+        }
+      });
+
+      pageCorner.addEventListener("mouseleave", () => {
+        if (!isCurling && !isTurning) clearCurl(false);
+      });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
@@ -610,11 +789,13 @@
       });
 
       bookArea.addEventListener("touchstart", (event) => {
+        if (event.target.closest("#pageCorner")) return;
         touchStartX = event.changedTouches[0].clientX;
         touchStartY = event.changedTouches[0].clientY;
       }, { passive: true });
 
       bookArea.addEventListener("touchend", (event) => {
+        if (event.target.closest("#pageCorner")) return;
         const deltaX = event.changedTouches[0].clientX - touchStartX;
         const deltaY = event.changedTouches[0].clientY - touchStartY;
         if (Math.abs(deltaX) > 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
