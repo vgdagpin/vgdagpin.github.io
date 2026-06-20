@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#211913">
+  <title>Every Color Finds Its Place</title>
+  <style>
+    :root {
+      --ink: #30251e;
+      --paper: #f7f0df;
+      --gold: #c59755;
+      --wood-dark: #1b1410;
+      --wood-light: #493327;
+      --page-ratio: 0.5628;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      min-height: 100svh;
+      overflow: hidden;
+      color: var(--paper);
+      font-family: Georgia, "Times New Roman", serif;
+      background:
+        radial-gradient(circle at 50% 42%, rgba(196, 149, 85, 0.13), transparent 34rem),
+        repeating-linear-gradient(91deg, transparent 0 19px, rgba(255, 255, 255, 0.012) 20px 21px),
+        linear-gradient(135deg, var(--wood-dark), var(--wood-light) 50%, #211812);
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .reader {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      gap: 14px;
+      width: min(100%, 1040px);
+      height: 100svh;
+      padding: clamp(12px, 2.3vh, 24px) clamp(14px, 3vw, 36px);
+    }
+
+    .topbar,
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      z-index: 10;
+    }
+
+    .title-group {
+      min-width: 0;
+    }
+
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--gold);
+      font: 600 0.66rem/1.2 system-ui, sans-serif;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      overflow: hidden;
+      margin: 0;
+      font-size: clamp(1rem, 2.5vw, 1.35rem);
+      font-weight: 400;
+      letter-spacing: 0.03em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-button,
+    .nav-button {
+      display: inline-grid;
+      place-items: center;
+      border: 1px solid rgba(247, 240, 223, 0.24);
+      color: var(--paper);
+      background: rgba(17, 12, 9, 0.32);
+      cursor: pointer;
+      transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, opacity 160ms ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .icon-button {
+      flex: 0 0 auto;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      font-family: system-ui, sans-serif;
+      font-size: 1.15rem;
+    }
+
+    .icon-button:hover,
+    .nav-button:hover:not(:disabled) {
+      border-color: var(--gold);
+      background: rgba(197, 151, 85, 0.15);
+    }
+
+    .icon-button:active,
+    .nav-button:active:not(:disabled) {
+      transform: scale(0.96);
+    }
+
+    .book-area {
+      position: relative;
+      display: grid;
+      min-height: 0;
+      place-items: center;
+      perspective: 1800px;
+      perspective-origin: 50% 48%;
+    }
+
+    .book {
+      position: relative;
+      height: 100%;
+      max-height: calc((100vw - 44px) / var(--page-ratio));
+      aspect-ratio: 941 / 1672;
+      border-radius: 3px 9px 9px 3px;
+      background: #e9dfc9;
+      box-shadow:
+        -9px 8px 0 -5px #bcae91,
+        -14px 13px 0 -8px #7c6a51,
+        0 24px 48px rgba(0, 0, 0, 0.42),
+        0 4px 12px rgba(0, 0, 0, 0.42);
+      transform: translateZ(0);
+      isolation: isolate;
+    }
+
+    .book::before {
+      position: absolute;
+      inset: 0 auto 0 -7px;
+      width: 11px;
+      border-radius: 4px 0 0 4px;
+      background: linear-gradient(90deg, #473526, #d1bea0 55%, #76634a);
+      box-shadow: inset -2px 0 3px rgba(0, 0, 0, 0.35);
+      content: "";
+      z-index: 8;
+    }
+
+    .page {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border-radius: 2px 7px 7px 2px;
+      background:
+        repeating-linear-gradient(0deg, transparent 0 4px, rgba(69, 47, 29, 0.018) 5px),
+        var(--paper);
+      box-shadow: inset 10px 0 18px rgba(52, 36, 24, 0.08);
+      transform-origin: left center;
+      backface-visibility: hidden;
+    }
+
+    .page-under {
+      z-index: 1;
+    }
+
+    .page-current {
+      z-index: 3;
+    }
+
+    .page img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #f8f6f1;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .page::after {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(90deg, rgba(32, 21, 13, 0.13), transparent 5%, transparent 82%, rgba(90, 65, 44, 0.08));
+      content: "";
+    }
+
+    .page.turn-forward {
+      animation: turnForward 540ms cubic-bezier(0.55, 0.06, 0.42, 0.96) both;
+    }
+
+    .page.turn-back {
+      animation: turnBack 540ms cubic-bezier(0.55, 0.06, 0.42, 0.96) both;
+    }
+
+    @keyframes turnForward {
+      0% {
+        filter: brightness(1);
+        transform: rotateY(0deg);
+      }
+      50% {
+        filter: brightness(0.72);
+      }
+      100% {
+        filter: brightness(0.48);
+        transform: rotateY(-178deg);
+      }
+    }
+
+    @keyframes turnBack {
+      0% {
+        filter: brightness(0.48);
+        transform: rotateY(-178deg);
+      }
+      50% {
+        filter: brightness(0.72);
+      }
+      100% {
+        filter: brightness(1);
+        transform: rotateY(0deg);
+      }
+    }
+
+    .book-cover,
+    .end-page {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12%;
+      color: #f7edda;
+      text-align: center;
+      background:
+        linear-gradient(rgba(30, 18, 12, 0.17), rgba(30, 18, 12, 0.38)),
+        radial-gradient(circle at 50% 35%, #8a6749, #3d291e 72%);
+    }
+
+    .book-cover::before {
+      position: absolute;
+      inset: 5%;
+      border: 1px solid rgba(221, 181, 115, 0.52);
+      border-radius: 3px;
+      box-shadow: inset 0 0 0 5px rgba(221, 181, 115, 0.08);
+      content: "";
+    }
+
+    .cover-mark {
+      width: clamp(54px, 23%, 104px);
+      margin-bottom: 10%;
+      filter: drop-shadow(0 7px 7px rgba(0, 0, 0, 0.3));
+    }
+
+    .cover-title {
+      position: relative;
+      margin: 0;
+      font-size: clamp(1.65rem, 5vh, 3.15rem);
+      font-weight: 400;
+      line-height: 1.08;
+      text-wrap: balance;
+    }
+
+    .cover-rule {
+      width: 34%;
+      height: 1px;
+      margin: 9% auto 7%;
+      background: var(--gold);
+    }
+
+    .cover-subtitle {
+      position: relative;
+      margin: 0;
+      color: #d9c8ac;
+      font: 500 clamp(0.64rem, 1.6vh, 0.85rem)/1.5 system-ui, sans-serif;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .end-page {
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.8), transparent 40%),
+        repeating-linear-gradient(0deg, transparent 0 4px, rgba(69, 47, 29, 0.018) 5px),
+        var(--paper);
+    }
+
+    .end-page .cover-title {
+      font-style: italic;
+    }
+
+    .end-page .cover-subtitle {
+      color: #80694e;
+    }
+
+    .end-symbol {
+      margin-bottom: 9%;
+      color: #a2743e;
+      font-size: clamp(2rem, 8vh, 4.5rem);
+    }
+
+    .page-corner {
+      position: absolute;
+      right: 9px;
+      bottom: 9px;
+      z-index: 5;
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 50% 0 0 0;
+      opacity: 0.34;
+      background: linear-gradient(135deg, transparent 50%, rgba(83, 59, 39, 0.25) 51%);
+      cursor: pointer;
+    }
+
+    .controls {
+      justify-content: center;
+    }
+
+    .nav-button {
+      min-width: 96px;
+      min-height: 42px;
+      padding: 0 18px;
+      border-radius: 999px;
+      font: 600 0.72rem/1 system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .nav-button:disabled {
+      cursor: default;
+      opacity: 0.28;
+    }
+
+    .progress-wrap {
+      display: grid;
+      gap: 7px;
+      width: min(40vw, 300px);
+    }
+
+    .page-count {
+      color: #d9cbb6;
+      font: 500 0.7rem/1 system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-align: center;
+    }
+
+    .progress-track {
+      position: relative;
+      height: 3px;
+      overflow: hidden;
+      border-radius: 4px;
+      background: rgba(247, 240, 223, 0.18);
+    }
+
+    .progress-bar {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 0;
+      border-radius: inherit;
+      background: var(--gold);
+      transition: width 300ms ease;
+    }
+
+    .hint {
+      position: absolute;
+      right: 0;
+      bottom: 2px;
+      margin: 0;
+      color: rgba(247, 240, 223, 0.45);
+      font: 0.68rem/1.3 system-ui, sans-serif;
+    }
+
+    .loading {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      color: #dac7a8;
+      background: #211812;
+      font: 500 0.72rem/1.5 system-ui, sans-serif;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      transition: opacity 500ms ease, visibility 500ms ease;
+    }
+
+    .loading.hidden {
+      visibility: hidden;
+      opacity: 0;
+    }
+
+    @media (max-width: 680px) {
+      .reader {
+        gap: 10px;
+        padding: 12px 12px 16px;
+      }
+
+      .book {
+        max-height: calc((100vw - 28px) / var(--page-ratio));
+      }
+
+      .nav-button {
+        min-width: 44px;
+        width: 44px;
+        padding: 0;
+        font-size: 0;
+      }
+
+      .nav-button::after {
+        font-size: 1.15rem;
+      }
+
+      #prevBtn::after {
+        content: "←";
+      }
+
+      #nextBtn::after {
+        content: "→";
+      }
+
+      .progress-wrap {
+        width: min(55vw, 260px);
+      }
+
+      .hint {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading" role="status">Opening our story…</div>
+
+  <main class="reader" aria-label="Manga book reader">
+    <header class="topbar">
+      <div class="title-group">
+        <p class="eyebrow">Our story</p>
+        <h1>Every Color Finds Its Place</h1>
+      </div>
+      <button class="icon-button" id="fullscreenBtn" type="button" aria-label="Enter fullscreen" title="Fullscreen">⛶</button>
+    </header>
+
+    <section class="book-area" id="bookArea" aria-live="polite">
+      <div class="book" id="book">
+        <div class="page page-under" id="pageUnder" aria-hidden="true"></div>
+        <div class="page page-current" id="pageCurrent"></div>
+        <button class="page-corner" id="pageCorner" type="button" aria-label="Turn to the next page" title="Next page"></button>
+      </div>
+    </section>
+
+    <footer class="controls">
+      <button class="nav-button" id="prevBtn" type="button">Previous</button>
+      <div class="progress-wrap">
+        <div class="page-count" id="pageCount">Cover</div>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+      <button class="nav-button" id="nextBtn" type="button">Next</button>
+      <p class="hint">Use ← → keys or swipe</p>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const imagePages = Array.from({ length: 11 }, (_, index) =>
+        `Images/${String(index + 1).padStart(2, "0")}.png`
+      );
+      const lastIndex = imagePages.length + 1;
+
+      const pageCurrent = document.getElementById("pageCurrent");
+      const pageUnder = document.getElementById("pageUnder");
+      const prevBtn = document.getElementById("prevBtn");
+      const nextBtn = document.getElementById("nextBtn");
+      const pageCorner = document.getElementById("pageCorner");
+      const pageCount = document.getElementById("pageCount");
+      const progressBar = document.getElementById("progressBar");
+      const fullscreenBtn = document.getElementById("fullscreenBtn");
+      const bookArea = document.getElementById("bookArea");
+      const loading = document.getElementById("loading");
+
+      let currentIndex = 0;
+      let isTurning = false;
+      let touchStartX = 0;
+      let touchStartY = 0;
+
+      function rubiksCube() {
+        const colors = ["#d84a37", "#e7b537", "#3768a9", "#4c9564", "#f2eee3", "#df7435"];
+        let squares = "";
+        for (let row = 0; row < 3; row++) {
+          for (let col = 0; col < 3; col++) {
+            squares += `<rect x="${col * 18 + 4}" y="${row * 18 + 4}" width="15" height="15" rx="1.5" fill="${colors[(row * 3 + col) % colors.length]}"/>`;
+          }
+        }
+        return `<svg class="cover-mark" viewBox="0 0 62 62" aria-hidden="true">
+          <g transform="rotate(-8 31 31)">
+            <rect x="2" y="2" width="58" height="58" rx="5" fill="#241a15" stroke="#d2a45d" stroke-width="2"/>
+            ${squares}
+          </g>
+        </svg>`;
+      }
+
+      function pageMarkup(index) {
+        if (index === 0) {
+          return `<div class="book-cover">
+            ${rubiksCube()}
+            <h2 class="cover-title">Every Color<br>Finds Its Place</h2>
+            <div class="cover-rule"></div>
+            <p class="cover-subtitle">A story of Vincent &amp; Thylyn</p>
+          </div>`;
+        }
+
+        if (index === lastIndex) {
+          return `<div class="end-page">
+            <div class="end-symbol">❦</div>
+            <h2 class="cover-title">And the story<br>continues…</h2>
+            <div class="cover-rule"></div>
+            <p class="cover-subtitle">Every new piece still leads back home</p>
+          </div>`;
+        }
+
+        const src = imagePages[index - 1];
+        return `<img src="${src}" alt="Every Color Finds Its Place — manga page ${index}" draggable="false">`;
+      }
+
+      function updateStatus() {
+        prevBtn.disabled = currentIndex === 0;
+        nextBtn.disabled = currentIndex === lastIndex;
+        pageCorner.hidden = currentIndex === lastIndex;
+
+        if (currentIndex === 0) {
+          pageCount.textContent = "Cover";
+        } else if (currentIndex === lastIndex) {
+          pageCount.textContent = "The End";
+        } else {
+          pageCount.textContent = `Page ${currentIndex} of ${imagePages.length}`;
+        }
+
+        progressBar.style.width = `${(currentIndex / lastIndex) * 100}%`;
+        document.title = currentIndex > 0 && currentIndex <= imagePages.length
+          ? `Page ${currentIndex} — Every Color Finds Its Place`
+          : "Every Color Finds Its Place";
+      }
+
+      function turnTo(targetIndex, direction) {
+        if (isTurning || targetIndex < 0 || targetIndex > lastIndex || targetIndex === currentIndex) return;
+        isTurning = true;
+        pageUnder.innerHTML = pageMarkup(targetIndex);
+
+        if (direction === "forward") {
+          pageCurrent.classList.add("turn-forward");
+        } else {
+          pageCurrent.innerHTML = pageMarkup(targetIndex);
+          pageCurrent.classList.add("turn-back");
+        }
+
+        window.setTimeout(() => {
+          currentIndex = targetIndex;
+          pageCurrent.innerHTML = pageMarkup(currentIndex);
+          pageCurrent.classList.remove("turn-forward", "turn-back");
+          pageUnder.innerHTML = "";
+          updateStatus();
+          isTurning = false;
+        }, 550);
+      }
+
+      function nextPage() {
+        turnTo(currentIndex + 1, "forward");
+      }
+
+      function previousPage() {
+        turnTo(currentIndex - 1, "back");
+      }
+
+      prevBtn.addEventListener("click", previousPage);
+      nextBtn.addEventListener("click", nextPage);
+      pageCorner.addEventListener("click", nextPage);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowRight" || event.key === "PageDown" || event.key === " ") {
+          event.preventDefault();
+          nextPage();
+        } else if (event.key === "ArrowLeft" || event.key === "PageUp") {
+          event.preventDefault();
+          previousPage();
+        } else if (event.key === "Home") {
+          turnTo(0, "back");
+        } else if (event.key === "End") {
+          turnTo(lastIndex, "forward");
+        }
+      });
+
+      bookArea.addEventListener("touchstart", (event) => {
+        touchStartX = event.changedTouches[0].clientX;
+        touchStartY = event.changedTouches[0].clientY;
+      }, { passive: true });
+
+      bookArea.addEventListener("touchend", (event) => {
+        const deltaX = event.changedTouches[0].clientX - touchStartX;
+        const deltaY = event.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(deltaX) > 55 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25) {
+          deltaX < 0 ? nextPage() : previousPage();
+        }
+      }, { passive: true });
+
+      fullscreenBtn.addEventListener("click", async () => {
+        try {
+          if (!document.fullscreenElement) {
+            await document.documentElement.requestFullscreen();
+          } else {
+            await document.exitFullscreen();
+          }
+        } catch (_) {
+          // Fullscreen may be unavailable in embedded browsers.
+        }
+      });
+
+      document.addEventListener("fullscreenchange", () => {
+        const isFullscreen = Boolean(document.fullscreenElement);
+        fullscreenBtn.textContent = isFullscreen ? "×" : "⛶";
+        fullscreenBtn.setAttribute("aria-label", isFullscreen ? "Exit fullscreen" : "Enter fullscreen");
+      });
+
+      function preloadImages() {
+        return Promise.all(imagePages.map(src => new Promise(resolve => {
+          const image = new Image();
+          image.onload = image.onerror = resolve;
+          image.src = src;
+        })));
+      }
+
+      pageCurrent.innerHTML = pageMarkup(0);
+      updateStatus();
+
+      Promise.race([
+        preloadImages(),
+        new Promise(resolve => window.setTimeout(resolve, 2200))
+      ]).then(() => loading.classList.add("hidden"));
+    })();
+  </script>
+</body>
+</html>
